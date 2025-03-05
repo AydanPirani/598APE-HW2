@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -I include -I. -g
+CXXFLAGS := -std=c++17 -Wall -Wextra -I include -I. -g -O2 -ffast-math
 
 # Directories
 SRC_DIR := src
