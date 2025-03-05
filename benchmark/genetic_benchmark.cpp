@@ -59,22 +59,20 @@ load_dataset(const std::string &filename) {
 }
 
 // Convert 2D vector to column-major vector
-std::vector<float>
-flatten_column_major(const std::vector<std::vector<float>> &data) {
-  if (data.empty())
-    return {};
+void flatten_column_major(const std::vector<std::vector<float>> &inData, std::vector<float> &outData) {
+  if (inData.empty()) {
+    return;
+  }
 
-  size_t rows = data.size();
-  size_t cols = data[0].size();
-  std::vector<float> flattened(rows * cols);
+  size_t rows = inData.size();
+  size_t cols = inData[0].size();
+  outData.reserve(rows * cols);
 
   for (size_t j = 0; j < cols; ++j) {
     for (size_t i = 0; i < rows; ++i) {
-      flattened[j * rows + i] = data[i][j];
+      outData[j * rows + i] = inData[i][j];
     }
   }
-
-  return flattened;
 }
 
 // Split dataset into training and testing sets
@@ -181,8 +179,10 @@ void run_symbolic_regression(const std::string &dataset_file) {
   std::vector<float> y_test = y_split.second;
 
   // Flatten data for genetic library (column-major)
-  std::vector<float> X_train_flat = utils::flatten_column_major(X_train);
-  std::vector<float> X_test_flat = utils::flatten_column_major(X_test);
+  std::vector<float> X_train_flat;
+  std::vector<float> X_test_flat;
+  utils::flatten_column_major(X_train, X_train_flat);
+  utils::flatten_column_major(X_test, X_test_flat);
 
   // Create weights (all 1.0)
   std::vector<float> sample_weights(y_train.size(), 1.0f);
@@ -318,9 +318,13 @@ void run_symbolic_classification(const std::string &dataset_file) {
   std::vector<float> y_train = y_split.first;
   std::vector<float> y_test = y_split.second;
 
+
+  std::vector<float> X_train_flat;
+  std::vector<float> X_test_flat; 
+  
   // Flatten data for genetic library (column-major)
-  std::vector<float> X_train_flat = utils::flatten_column_major(X_train);
-  std::vector<float> X_test_flat = utils::flatten_column_major(X_test);
+  utils::flatten_column_major(X_train, X_train_flat);
+  utils::flatten_column_major(X_test, X_test_flat);
 
   // Create weights (all 1.0)
   std::vector<float> sample_weights(y_train.size(), 1.0f);
