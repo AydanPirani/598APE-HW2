@@ -56,14 +56,11 @@ template <typename DataT, int MaxSize> struct stack {
    *       to all sorts of incorrect behavior.
    */
   DataT pop() {
-    for (int i = 0; i < MaxSize; ++i) {
-      if (elements_ == (i + 1)) {
-        elements_--;
-        return regs_[i];
-      }
+    if (elements_ == 0) {
+      return DataT(0);
     }
-
-    return DataT(0);
+    
+    return regs_[--elements_];
   }
 
 private:
