@@ -432,25 +432,20 @@ void run_symbolic_classification(const std::string &dataset_file) {
 }
 
 int main(int argc, char *argv[]) {
-  try {
-    // Default datasets
-    std::string regression_dataset = "benchmark/diabetes.csv";
-    std::string classification_dataset = "benchmark/cancer.csv";
-    std::string housing_dataset = "benchmark/housing.csv";
+  // Default datasets
+  std::string regression_dataset = "benchmark/diabetes.csv";
+  std::string classification_dataset = "benchmark/cancer.csv";
+  std::string housing_dataset = "benchmark/housing.csv";
 
-    std::string arg_dset(argv[1]);
+  std::string arg_dset(argv[1]);
 
-    if (arg_dset == "diabetes") {
-      run_symbolic_regression(regression_dataset);
-    } else if (arg_dset == "cancer") {
-      run_symbolic_classification(classification_dataset);
-    } else if (arg_dset == "housing") {
-      run_symbolic_regression(housing_dataset);
-    }
-
-    return 0;
-  } catch (const std::exception &e) {
-    std::cerr << "Error: " << e.what() << std::endl;
-    return 1;
+  if (arg_dset == "diabetes") {
+    run_symbolic_regression(regression_dataset);
+  } else if (arg_dset == "cancer") {
+    run_symbolic_classification(classification_dataset);
+  } else if (arg_dset == "housing") {
+    run_symbolic_regression(housing_dataset);
   }
+
+  return 0;
 }
