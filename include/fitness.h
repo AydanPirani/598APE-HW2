@@ -278,9 +278,9 @@ void rootMeanSquareError(const uint64_t n_samples, const uint64_t n_progs,
 template <typename math_t = float>
 void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
              const math_t *Y_pred, const math_t *W, math_t *out) {
-  // Logistic error per sample
-  std::vector<math_t> error(n_samples * n_progs);
-  math_t N = (math_t)n_samples;
+  const math_t N = static_cast<math_t>(n_samples);
+
+  std::fill(out, out + n_progs, static_cast<math_t>(0));
 
   // Weight Sum
   math_t WS = static_cast<math_t>(0);
@@ -297,11 +297,12 @@ void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
   // worked). Improving numerical stability in CUDA is ... :)
 
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
+    const uint64_t offset = pid * n_samples;
     for (uint64_t i = 0; i < n_samples; ++i) {
-      math_t logsig;
-      math_t yp = Y_pred[pid * n_samples + i];
+      math_t yp = Y_pred[offset + i];
       math_t y = Y[i];
       math_t w = W[i];
+      math_t logsig;
       if (yp < -33.3)
         logsig = yp;
       else if (yp <= -18)
@@ -310,15 +311,8 @@ void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
         logsig = -log1pf(expf(-yp));
       else
         logsig = -expf(-yp);
-      error[pid * n_samples + i] = ((1 - y) * yp - logsig) * (N * w / WS);
-    }
-  }
-
-  // Take average along rows
-  for (uint64_t pid = 0; pid < n_progs; ++pid) {
-    out[pid] = static_cast<math_t>(0);
-    for (uint64_t i = 0; i < n_samples; ++i) {
-      out[pid] += error[pid * n_samples + i] / N;
+      // error[pid * n_samples + i] = ((1 - y) * yp - logsig) * (N * w / WS);
+      out[pid] += ((1 - y) * yp - logsig) * (w / WS); // Directly accumulate
     }
   }
 }
