@@ -140,6 +140,7 @@ void weightedSpearman(const uint64_t n_samples, const uint64_t n_progs,
   std::vector<math_t> Ypredcopy(Y_pred, Y_pred + n_samples * n_progs);
   std::vector<math_t> Ypredrank(n_samples * n_progs, 0);
 
+  #pragma omp parallel for schedule(static)
   for (std::size_t pid = 0; pid < n_progs; ++pid) {
     std::iota(rank_idx.begin(), rank_idx.end(), 0);
     std::sort(rank_idx.begin(), rank_idx.end(),
@@ -181,6 +182,7 @@ void meanAbsoluteError(const uint64_t n_samples, const uint64_t n_progs,
   }
 
   // Compute absolute differences
+  #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     for (uint64_t i = 0; i < n_samples; ++i) {
       error[pid * n_samples + i] =
@@ -189,6 +191,7 @@ void meanAbsoluteError(const uint64_t n_samples, const uint64_t n_progs,
   }
 
   // Average along rows
+  #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     out[pid] = static_cast<math_t>(0);
     for (uint64_t i = 0; i < n_samples; ++i) {
@@ -212,6 +215,7 @@ void meanSquareError(const uint64_t n_samples, const uint64_t n_progs,
   }
 
   // Compute absolute differences
+  #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     for (uint64_t i = 0; i < n_samples; ++i) {
       error[pid * n_samples + i] = N * W[i] *
@@ -221,6 +225,7 @@ void meanSquareError(const uint64_t n_samples, const uint64_t n_progs,
   }
 
   // Average along rows
+  #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     out[pid] = static_cast<math_t>(0);
     for (uint64_t i = 0; i < n_samples; ++i) {
@@ -264,6 +269,7 @@ void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
   // adapt it for the weighted version (turned out pre-multiplying N just
   // worked). Improving numerical stability in CUDA is ... :)
 
+  #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     const uint64_t offset = pid * n_samples;
     for (uint64_t i = 0; i < n_samples; ++i) {
