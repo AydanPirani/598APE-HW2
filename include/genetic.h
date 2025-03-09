@@ -52,8 +52,8 @@ void symFit(const float *input, const float *labels,
  * @param best_prog   device pointer to best AST fit during training
  * @param output      device pointer to output values
  */
-void symRegPredict(const float *input, const int n_rows,
-                   const program_t &best_prog, float *output);
+void symRegPredict(const float *input, const int n_rows, program_t &best_prog,
+                   float *output);
 
 /**
  * @brief Probability prediction for a symbolic classifier. If a

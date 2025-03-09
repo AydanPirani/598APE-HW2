@@ -464,8 +464,8 @@ void symFit(const float *input, const float *labels,
   }
 }
 
-void symRegPredict(const float *input, const int n_rows,
-                   const program_t &best_prog, float *output) {
+void symRegPredict(const float *input, const int n_rows, program_t &best_prog,
+                   float *output) {
   // Assume best_prog is on device
   execute(best_prog, n_rows, 1, input, output);
 }

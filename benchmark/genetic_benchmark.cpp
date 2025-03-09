@@ -59,7 +59,8 @@ load_dataset(const std::string &filename) {
 }
 
 // Convert 2D vector to column-major vector
-void flatten_column_major(const std::vector<std::vector<float>> &inData, std::vector<float> &outData) {
+void flatten_column_major(const std::vector<std::vector<float>> &inData,
+                          std::vector<float> &outData) {
   if (inData.empty()) {
     return;
   }
@@ -139,16 +140,21 @@ float accuracy(const std::vector<float> &y_true,
 
 using namespace genetic;
 
-void insertionSortPrograms(genetic::program *programs, int size) {
-  for (int i = 1; i < size; i++) {
-    genetic::program key(programs[i]);
-    int j = i - 1;
-
-    while (j >= 0 && (programs[j].raw_fitness_ > key.raw_fitness_)) {
-      programs[j + 1] = programs[j];
-      j--;
+// Gets top 2 programs, only works with pointers/references to prevent copying
+void top_2_programs(genetic::program *programs, int size,
+                    genetic::program *&best, genetic::program *&second_best) {
+  if (size < 2) {
+    throw std::runtime_error("Size must be at least 2");
+  }
+  best = &programs[0];
+  second_best = &programs[1];
+  for (int i = 2; i < size; i++) {
+    if (programs[i].raw_fitness_ < best->raw_fitness_) {
+      second_best = best;
+      best = &programs[i];
+    } else if (programs[i].raw_fitness_ < second_best->raw_fitness_) {
+      second_best = &programs[i];
     }
-    programs[j + 1] = key;
   }
 }
 
@@ -226,7 +232,6 @@ void run_symbolic_regression(const std::string &dataset_file) {
             << " population size and " << params.generations << " generations"
             << std::endl;
 
-
   // Create history vector to store programs
   genetic::program_t final_programs;
   final_programs = new genetic::program[params.population_size]();
@@ -245,14 +250,16 @@ void run_symbolic_regression(const std::string &dataset_file) {
   // }
 
   // Predict on top 2 candidates
-  insertionSortPrograms(final_programs, params.population_size);
+  genetic::program *best = nullptr;
+  genetic::program *second_best = nullptr;
+  top_2_programs(final_programs, params.population_size, best, second_best);
 
   std::vector<float> y_pred1(X_test.size());
-  genetic::symRegPredict(X_test_flat.data(), X_test.size(), &final_programs[0],
+  genetic::symRegPredict(X_test_flat.data(), X_test.size(), best,
                          y_pred1.data());
 
   std::vector<float> y_pred2(X_test.size());
-  genetic::symRegPredict(X_test_flat.data(), X_test.size(), &final_programs[1],
+  genetic::symRegPredict(X_test_flat.data(), X_test.size(), second_best,
                          y_pred2.data());
 
   // Calculate MSE on test set
@@ -318,10 +325,9 @@ void run_symbolic_classification(const std::string &dataset_file) {
   std::vector<float> y_train = y_split.first;
   std::vector<float> y_test = y_split.second;
 
-
   std::vector<float> X_train_flat;
-  std::vector<float> X_test_flat; 
-  
+  std::vector<float> X_test_flat;
+
   // Flatten data for genetic library (column-major)
   utils::flatten_column_major(X_train, X_train_flat);
   utils::flatten_column_major(X_test, X_test_flat);
@@ -390,14 +396,17 @@ void run_symbolic_classification(const std::string &dataset_file) {
   // }
 
   // Predict classes for best 2 programs acc to training
-  insertionSortPrograms(final_programs, params.population_size);
+  genetic::program *best = nullptr;
+  genetic::program *second_best = nullptr;
+  top_2_programs(final_programs, params.population_size, best, second_best);
+
   std::vector<float> y_pred1(X_test.size());
-  genetic::symClfPredict(X_test_flat.data(), X_test.size(), params,
-                         &final_programs[0], y_pred1.data());
+  genetic::symClfPredict(X_test_flat.data(), X_test.size(), params, best,
+                         y_pred1.data());
 
   std::vector<float> y_pred2(X_test.size());
   genetic::symClfPredict(X_test_flat.data(), X_test.size(), params,
-                         &final_programs[1], y_pred2.data());
+                         second_best, y_pred2.data());
 
   float acc = utils::accuracy(y_test, y_pred1);
   float acc2 = utils::accuracy(y_test, y_pred2);
