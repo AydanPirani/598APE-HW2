@@ -18,76 +18,43 @@ void weightedPearson(const uint64_t n_samples, const uint64_t n_progs,
   // cudaStream_t stream = h.get_stream();
 
   std::vector<math_t> corr(n_samples * n_progs); // correlation matrix
-  std::vector<math_t> y_tmp(n_samples);
   std::vector<math_t> x_tmp(n_samples * n_progs);
 
   math_t y_mu;                       // output mean
   std::vector<math_t> x_mu(n_progs); // predicted output mean
 
-  std::vector<math_t> y_diff(n_samples);           // normalized output
-  std::vector<math_t> x_diff(n_samples * n_progs); // normalized predicted
-                                                   // output
-  math_t y_std;                                    // output stddev
-  std::vector<math_t> x_std(n_progs);              // predicted output stddev
+  // output
+  math_t y_std;                       // output stddev
+  std::vector<math_t> x_std(n_progs); // predicted output stddev
 
   math_t N = static_cast<math_t>(n_samples); // (math_t)n_samples;
 
   // Sum of weights
-  math_t WS = (math_t)0;
+  math_t WS = static_cast<math_t>(0);
   for (uint64_t i = 0; i < n_samples; ++i) {
     WS += W[i];
   }
 
-  {
-    // Find y_tmp
-    for (uint64_t i = 0; i < n_samples; ++i) {
-      y_tmp[i] = Y[i] * W[i] * N / WS;
-    }
-
-    // Find y_mu
-    for (uint64_t i = 0; i < n_samples; ++i) {
-      y_mu += y_tmp[i] / N;
-    }
-  }
-
-  // Find x_mu - bcast W along columns
-  {
-    // find x_tmp
-    for (uint64_t pid = 0; pid < n_progs; ++pid) {
-      for (uint64_t i = 0; i < n_samples; ++i) {
-        x_tmp[pid * n_samples + i] = X[pid * n_samples + i] * W[i] * N / WS;
-      }
-    }
-
-    // find x_mu
-    for (uint64_t pid = 0; pid < n_progs; ++pid) {
-      for (uint64_t i = 0; i < n_samples; ++i) {
-        x_mu[pid] += x_tmp[pid * n_samples + i] / N;
-      }
-    }
-  }
-
-  // Find y_diff
+  // Find y_mu
   for (uint64_t i = 0; i < n_samples; ++i) {
-    y_diff[i] = Y[i] - y_mu;
+    y_mu += Y[i] * W[i];
   }
+  y_mu /= WS;
 
-  // raft::stats::meanCenter(y_diff.data(), Y, y_mu.data(), (uint64_t)1,
-  // n_samples,
-  //                         false, true, stream);
-
-  // Find x_diff
+  // find x_mu - bcast W along columns
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     for (uint64_t i = 0; i < n_samples; ++i) {
-      x_diff[pid * n_samples + i] = X[pid * n_samples + i] - x_mu[pid];
+      x_mu[pid] += X[pid * n_samples + i] * W[i];
     }
+    x_mu[pid] /= WS;
   }
 
   // Find y_std
   {
     y_std = static_cast<math_t>(0);
     for (uint64_t i = 0; i < n_samples; ++i) {
-      y_std += y_diff[i] * y_diff[i] * W[i];
+      math_t diff = Y[i] - y_mu;
+      y_std += diff * diff * W[i];
     }
     y_std = std::sqrt(y_std);
   }
@@ -96,8 +63,8 @@ void weightedPearson(const uint64_t n_samples, const uint64_t n_progs,
   {
     for (uint64_t pid = 0; pid < n_progs; ++pid) {
       for (uint64_t i = 0; i < n_samples; ++i) {
-        x_std[pid] +=
-            x_diff[pid * n_samples + i] * x_diff[pid * n_samples + i] * W[i];
+        math_t diff = X[pid * n_samples + i] - x_mu[pid];
+        x_std[pid] += diff * diff * W[i];
       }
       x_std[pid] = std::sqrt(x_std[pid]);
     }
@@ -106,8 +73,9 @@ void weightedPearson(const uint64_t n_samples, const uint64_t n_progs,
   // Cross covariance
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     for (uint64_t i = 0; i < n_samples; ++i) {
-      corr[pid * n_samples + i] =
-          N * W[i] * x_diff[pid * n_samples + i] * y_diff[i] / y_std;
+      math_t x_diff = X[pid * n_samples + i] - x_mu[pid];
+      math_t y_diff = Y[i] - y_mu;
+      corr[pid * n_samples + i] = N * W[i] * x_diff * y_diff / y_std;
     }
   }
 

@@ -21,29 +21,27 @@ namespace genetic {
 template <int MaxSize = MAX_STACK_SIZE>
 void execute_kernel(const program_t d_progs, const float *data, float *y_pred,
                     const uint64_t n_rows, const uint64_t n_progs) {
+  #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
     for (uint64_t row_id = 0; row_id < n_rows; ++row_id) {
 
       stack<float, MaxSize> eval_stack;
       program_t curr_p = d_progs + pid; // Current program
 
-      int end = curr_p->len - 1;
-      node *curr_node = curr_p->nodes + end;
+      node *curr_node = curr_p->nodes + curr_p->len - 1;
 
-      float res = 0.0f;
-      float in[2] = {0.0f, 0.0f};
+      float res;
+      float in[2];
 
-      while (end >= 0) {
-        if (detail::is_nonterminal(curr_node->t)) {
-          int ar = detail::arity(curr_node->t);
-          in[0] = eval_stack.pop(); // Min arity of function is 1
-          if (ar > 1)
-            in[1] = eval_stack.pop();
-        }
+      while (curr_node >= curr_p->nodes) {
+        const bool nonterminal = detail::is_nonterminal(curr_node->t);
+        in[0] = nonterminal ? eval_stack.pop() : 0.0f;
+        in[1] = (nonterminal && detail::arity(curr_node->t) > 1)
+                    ? eval_stack.pop()
+                    : 0.0f;
         res = detail::evaluate_node(*curr_node, data, n_rows, row_id, in);
         eval_stack.push(res);
         curr_node--;
-        end--;
       }
 
       // Outputs stored in col-major format
