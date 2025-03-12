@@ -140,22 +140,32 @@ float accuracy(const std::vector<float> &y_true,
 
 using namespace genetic;
 
+using index_pair = std::pair<int, int>;
 // Gets top 2 programs, only works with pointers/references to prevent copying
-void top_2_programs(genetic::program *programs, int size,
-                    genetic::program *&best, genetic::program *&second_best) {
+index_pair top_2_programs(genetic::program *programs, int size) {
   if (size < 2) {
     throw std::runtime_error("Size must be at least 2");
   }
-  best = &programs[0];
-  second_best = &programs[1];
-  for (int i = 2; i < size; i++) {
-    if (programs[i].raw_fitness_ < best->raw_fitness_) {
-      second_best = best;
-      best = &programs[i];
-    } else if (programs[i].raw_fitness_ < second_best->raw_fitness_) {
-      second_best = &programs[i];
+
+  int idx1 = -1, idx2 = -1;
+  float rf1 = std::numeric_limits<float>::max();
+  float rf2 = std::numeric_limits<float>::max();
+
+  for (int i = 0; i < size; i++) {
+    float rf = programs[i].raw_fitness_;
+    if (rf < rf1) {
+      rf2 = rf1;
+      idx2 = idx1;
+
+      rf1 = rf;
+      idx1 = i;
+    } else if (rf < rf2) {
+      rf2 = rf;
+      idx2 = i;
     }
   }
+
+  return std::make_pair<>(idx1, idx2);
 }
 
 void run_symbolic_regression(const std::string &dataset_file) {
@@ -250,9 +260,10 @@ void run_symbolic_regression(const std::string &dataset_file) {
   // }
 
   // Predict on top 2 candidates
-  genetic::program *best = nullptr;
-  genetic::program *second_best = nullptr;
-  top_2_programs(final_programs, params.population_size, best, second_best);
+  index_pair idxs = top_2_programs(final_programs, params.population_size);
+
+  genetic::program *best = &final_programs[idxs.first];
+  genetic::program *second_best = &final_programs[idxs.second];
 
   std::vector<float> y_pred1(X_test.size());
   genetic::symRegPredict(X_test_flat.data(), X_test.size(), best,
@@ -268,26 +279,24 @@ void run_symbolic_regression(const std::string &dataset_file) {
 
   // Extract the best programs and print some stats
   if (history.back().size() > 0) {
-    genetic::program_t best_program1 = &final_programs[0];
     std::cout << "Best program 1 details:" << std::endl;
-    std::cout << "- Length: " << best_program1->len << " nodes" << std::endl;
-    std::cout << "- Depth: " << best_program1->depth << std::endl;
-    std::cout << "- Raw fitness: " << best_program1->raw_fitness_ << std::endl;
+    std::cout << "- Length: " << best->len << " nodes" << std::endl;
+    std::cout << "- Depth: " << best->depth << std::endl;
+    std::cout << "- Raw fitness: " << best->raw_fitness_ << std::endl;
     std::cout << "- Test MSE: " << mse << std::endl;
 
     // Convert to string representation
-    std::string program_str = genetic::stringify(*best_program1);
+    std::string program_str = genetic::stringify(*best);
     std::cout << "- Program: " << program_str << std::endl;
 
-    genetic::program_t best_program2 = &final_programs[1];
     std::cout << "Best program 2 details:" << std::endl;
-    std::cout << "- Length: " << best_program2->len << " nodes" << std::endl;
-    std::cout << "- Depth: " << best_program2->depth << std::endl;
-    std::cout << "- Raw fitness: " << best_program2->raw_fitness_ << std::endl;
+    std::cout << "- Length: " << second_best->len << " nodes" << std::endl;
+    std::cout << "- Depth: " << second_best->depth << std::endl;
+    std::cout << "- Raw fitness: " << second_best->raw_fitness_ << std::endl;
     std::cout << "- Test MSE: " << mse2 << std::endl;
 
     // Convert to string representation
-    std::string program_str2 = genetic::stringify(*best_program2);
+    std::string program_str2 = genetic::stringify(*second_best);
     std::cout << "- Program: " << program_str2 << std::endl;
   }
 
@@ -396,43 +405,41 @@ void run_symbolic_classification(const std::string &dataset_file) {
   // }
 
   // Predict classes for best 2 programs acc to training
-  genetic::program *best = nullptr;
-  genetic::program *second_best = nullptr;
-  top_2_programs(final_programs, params.population_size, best, second_best);
+  index_pair idxs = top_2_programs(final_programs, params.population_size);
+  genetic::program *best = &final_programs[idxs.first];
+  genetic::program *second_best = &final_programs[idxs.second];
 
   std::vector<float> y_pred1(X_test.size());
   genetic::symClfPredict(X_test_flat.data(), X_test.size(), params, best,
                          y_pred1.data());
 
   std::vector<float> y_pred2(X_test.size());
-  genetic::symClfPredict(X_test_flat.data(), X_test.size(), params,
-                         second_best, y_pred2.data());
+  genetic::symClfPredict(X_test_flat.data(), X_test.size(), params, second_best,
+                         y_pred2.data());
 
   float acc = utils::accuracy(y_test, y_pred1);
   float acc2 = utils::accuracy(y_test, y_pred2);
 
   // Extract the best programs and print some stats
   if (history.back().size() > 0) {
-    genetic::program_t best_program1 = &final_programs[0];
     std::cout << "Best program 1 details:" << std::endl;
-    std::cout << "- Length: " << best_program1->len << " nodes" << std::endl;
-    std::cout << "- Depth: " << best_program1->depth << std::endl;
-    std::cout << "- Raw fitness: " << best_program1->raw_fitness_ << std::endl;
+    std::cout << "- Length: " << best->len << " nodes" << std::endl;
+    std::cout << "- Depth: " << best->depth << std::endl;
+    std::cout << "- Raw fitness: " << best->raw_fitness_ << std::endl;
     std::cout << "- Test accuracy: " << acc << std::endl;
 
     // Convert to string representation
-    std::string program_str = genetic::stringify(*best_program1);
+    std::string program_str = genetic::stringify(*best);
     std::cout << "- Program: " << program_str << std::endl;
 
-    genetic::program_t best_program2 = &final_programs[1];
     std::cout << "Best program 2 details:" << std::endl;
-    std::cout << "- Length: " << best_program2->len << " nodes" << std::endl;
-    std::cout << "- Depth: " << best_program2->depth << std::endl;
-    std::cout << "- Raw fitness: " << best_program2->raw_fitness_ << std::endl;
+    std::cout << "- Length: " << second_best->len << " nodes" << std::endl;
+    std::cout << "- Depth: " << second_best->depth << std::endl;
+    std::cout << "- Raw fitness: " << second_best->raw_fitness_ << std::endl;
     std::cout << "- Test accuracy: " << acc2 << std::endl;
 
     // Convert to string representation
-    std::string program_str2 = genetic::stringify(*best_program2);
+    std::string program_str2 = genetic::stringify(*second_best);
     std::cout << "- Program: " << program_str2 << std::endl;
   }
 

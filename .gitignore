@@ -36,3 +36,6 @@ compile_commands.json
 genetic_benchmark
 
 data/
+
+cachegrind.out.*
+profile.json.gz
