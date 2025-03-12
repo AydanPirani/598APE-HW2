@@ -78,22 +78,21 @@ program &program::operator=(const program &src) {
   return *this;
 }
 
-void compute_metric(int n_rows, int n_progs, const float *y,
-                    const float *y_pred, const float *w, float *score,
-                    const param &params) {
+void compute_metric(program_t d_progs, int n_rows, int n_progs, const float *y,
+                    const float *y_pred, const float *w, const param &params) {
   // Call appropriate metric function based on metric defined in params
   if (params.metric == metric_t::pearson) {
-    weightedPearson(n_rows, n_progs, y, y_pred, w, score);
+    weightedPearson(d_progs, n_rows, n_progs, y, y_pred, w);
   } else if (params.metric == metric_t::spearman) {
-    weightedSpearman(n_rows, n_progs, y, y_pred, w, score);
+    weightedSpearman(d_progs, n_rows, n_progs, y, y_pred, w);
   } else if (params.metric == metric_t::mae) {
-    meanAbsoluteError(n_rows, n_progs, y, y_pred, w, score);
+    meanAbsoluteError(d_progs, n_rows, n_progs, y, y_pred, w);
   } else if (params.metric == metric_t::mse) {
-    meanSquareError(n_rows, n_progs, y, y_pred, w, score);
+    meanSquareError(d_progs, n_rows, n_progs, y, y_pred, w);
   } else if (params.metric == metric_t::rmse) {
-    rootMeanSquareError(n_rows, n_progs, y, y_pred, w, score);
+    rootMeanSquareError(d_progs, n_rows, n_progs, y, y_pred, w);
   } else if (params.metric == metric_t::logloss) {
-    logLoss(n_rows, n_progs, y, y_pred, w, score);
+    logLoss(d_progs, n_rows, n_progs, y, y_pred, w);
   } else {
     // This should not be reachable
   }
@@ -105,7 +104,7 @@ void execute(const program_t &d_progs, const int n_rows, const int n_progs,
                  static_cast<uint64_t>(n_progs));
 }
 
-void find_fitness(program_t d_prog, float *score, const param &params,
+void find_fitness(program_t d_prog, const param &params,
                   const int n_rows, const float *data, const float *y,
                   const float *sample_weights) {
 
@@ -114,10 +113,10 @@ void find_fitness(program_t d_prog, float *score, const param &params,
   execute(d_prog, n_rows, 1, data, y_pred.data());
 
   // Compute error
-  compute_metric(n_rows, 1, y, y_pred.data(), sample_weights, score, params);
+  compute_metric(d_prog, n_rows, 1, y, y_pred.data(), sample_weights, params);
 }
 
-void find_batched_fitness(int n_progs, program_t d_progs, float *score,
+void find_batched_fitness(int n_progs, program_t d_progs,
                           const param &params, const int n_rows,
                           const float *data, const float *y,
                           const float *sample_weights) {
@@ -126,7 +125,7 @@ void find_batched_fitness(int n_progs, program_t d_progs, float *score,
   execute(d_progs, n_rows, n_progs, data, y_pred.data());
 
   // Compute error
-  compute_metric(n_rows, n_progs, y, y_pred.data(), sample_weights, score,
+  compute_metric(d_progs, n_rows, n_progs, y, y_pred.data(), sample_weights,
                  params);
 }
 
@@ -134,12 +133,7 @@ void set_fitness(program &h_prog, const param &params, const int n_rows,
                  const float *data, const float *y,
                  const float *sample_weights) {
 
-  std::vector<float> score(1);
-
-  find_fitness(&h_prog, score.data(), params, n_rows, data, y, sample_weights);
-
-  // Update host and device score for program
-  h_prog.raw_fitness_ = score[0];
+  find_fitness(&h_prog, params, n_rows, data, y, sample_weights);
 }
 
 void set_batched_fitness(int n_progs, std::vector<program> &h_progs,
@@ -147,16 +141,8 @@ void set_batched_fitness(int n_progs, std::vector<program> &h_progs,
                          const float *data, const float *y,
                          const float *sample_weights) {
 
-  std::vector<float> score(n_progs);
-
-  find_batched_fitness(n_progs, h_progs.data(), score.data(), params, n_rows,
+  find_batched_fitness(n_progs, h_progs.data(), params, n_rows,
                        data, y, sample_weights);
-
-  // Update scores on host and device
-  // TODO: Find a way to reduce the number of implicit memory transfers
-  for (auto i = 0; i < n_progs; ++i) {
-    h_progs[i].raw_fitness_ = score[i];
-  }
 }
 
 float get_fitness(const program &prog, const param &params) {

@@ -6,13 +6,13 @@
 #include <cstdlib>
 #include <numeric>
 #include <vector>
+#include "program.h"
 
 namespace genetic {
 
 template <typename math_t = float>
-void weightedPearson(const uint64_t n_samples, const uint64_t n_progs,
-                     const math_t *Y, const math_t *X, const math_t *W,
-                     math_t *out) {
+void weightedPearson(program_t d_progs, const uint64_t n_samples, const uint64_t n_progs,
+                     const math_t *Y, const math_t *X, const math_t *W) {
   // Find Karl Pearson's correlation coefficient
 
   // cudaStream_t stream = h.get_stream();
@@ -87,9 +87,9 @@ void weightedPearson(const uint64_t n_samples, const uint64_t n_progs,
 
   // Find out = corr_mu, the correlation coefficient
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
-    out[pid] = static_cast<math_t>(0);
+    d_progs[pid].raw_fitness_ = static_cast<math_t>(0);
     for (uint64_t i = 0; i < n_samples; ++i) {
-      out[pid] += corr[pid * n_samples + i] / N;
+      d_progs[pid].raw_fitness_ += corr[pid * n_samples + i] / N;
     }
   }
 }
@@ -104,9 +104,8 @@ struct rank_functor {
 };
 
 template <typename math_t = float>
-void weightedSpearman(const uint64_t n_samples, const uint64_t n_progs,
-                      const math_t *Y, const math_t *Y_pred, const math_t *W,
-                      math_t *out) {
+void weightedSpearman(program_t d_progs, const uint64_t n_samples, const uint64_t n_progs,
+                      const math_t *Y, const math_t *Y_pred, const math_t *W) {
   // Get ranks for Y in Yrank
   std::vector<math_t> Ycopy(Y, Y + n_samples);
   std::vector<size_t> rank_idx(n_samples, 0);
@@ -165,13 +164,12 @@ void weightedSpearman(const uint64_t n_samples, const uint64_t n_progs,
   }
 
   // Compute pearson's coefficient on the ranks
-  weightedPearson(n_samples, n_progs, Yrank.data(), Ypredrank.data(), W, out);
+  weightedPearson(d_progs, n_samples, n_progs, Yrank.data(), Ypredrank.data(), W);
 }
 
 template <typename math_t = float>
-void meanAbsoluteError(const uint64_t n_samples, const uint64_t n_progs,
-                       const math_t *Y, const math_t *Y_pred, const math_t *W,
-                       math_t *out) {
+void meanAbsoluteError(program_t d_progs, const uint64_t n_samples, const uint64_t n_progs,
+                       const math_t *Y, const math_t *Y_pred, const math_t *W) {
   std::vector<math_t> error(n_samples * n_progs);
   math_t N = static_cast<math_t>(n_samples);
 
@@ -193,17 +191,16 @@ void meanAbsoluteError(const uint64_t n_samples, const uint64_t n_progs,
   // Average along rows
   #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
-    out[pid] = static_cast<math_t>(0);
+    d_progs[pid].raw_fitness_ = static_cast<math_t>(0);
     for (uint64_t i = 0; i < n_samples; ++i) {
-      out[pid] += error[pid * n_samples + i] / N;
+      d_progs[pid].raw_fitness_ += error[pid * n_samples + i] / N;
     }
   }
 }
 
 template <typename math_t = float>
-void meanSquareError(const uint64_t n_samples, const uint64_t n_progs,
-                     const math_t *Y, const math_t *Y_pred, const math_t *W,
-                     math_t *out) {
+void meanSquareError(program_t d_progs, const uint64_t n_samples, const uint64_t n_progs,
+                     const math_t *Y, const math_t *Y_pred, const math_t *W) {
 
   std::vector<math_t> error(n_samples * n_progs);
   math_t N = static_cast<math_t>(n_samples);
@@ -227,33 +224,30 @@ void meanSquareError(const uint64_t n_samples, const uint64_t n_progs,
   // Average along rows
   #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
-    out[pid] = static_cast<math_t>(0);
+    d_progs[pid].raw_fitness_ = static_cast<math_t>(0);
     for (uint64_t i = 0; i < n_samples; ++i) {
-      out[pid] += error[pid * n_samples + i] / N;
+      d_progs[pid].raw_fitness_ += error[pid * n_samples + i] / N;
     }
   }
 }
 
 template <typename math_t = float>
-void rootMeanSquareError(const uint64_t n_samples, const uint64_t n_progs,
-                         const math_t *Y, const math_t *Y_pred, const math_t *W,
-                         math_t *out) {
+void rootMeanSquareError(program_t d_progs, const uint64_t n_samples, const uint64_t n_progs,
+                         const math_t *Y, const math_t *Y_pred, const math_t *W) {
 
   // Find MSE
-  meanSquareError(n_samples, n_progs, Y, Y_pred, W, out);
+  meanSquareError(d_progs, n_samples, n_progs, Y, Y_pred, W);
 
   // Take sqrt on all entries
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
-    out[pid] = sqrt(out[pid]);
+    d_progs[pid].raw_fitness_ = sqrt(d_progs[pid].raw_fitness_);
   }
 }
 
 template <typename math_t = float>
-void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
-             const math_t *Y_pred, const math_t *W, math_t *out) {
+void logLoss(program_t d_progs, const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
+             const math_t *Y_pred, const math_t *W) {
   const math_t N = static_cast<math_t>(n_samples);
-
-  std::fill(out, out + n_progs, static_cast<math_t>(0));
 
   // Weight Sum
   math_t WS = static_cast<math_t>(0);
@@ -271,6 +265,7 @@ void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
 
   #pragma omp parallel for schedule(static)
   for (uint64_t pid = 0; pid < n_progs; ++pid) {
+    d_progs[pid].raw_fitness_ = static_cast<math_t>(0);
     const uint64_t offset = pid * n_samples;
     for (uint64_t i = 0; i < n_samples; ++i) {
       math_t yp = Y_pred[offset + i];
@@ -286,7 +281,7 @@ void logLoss(const uint64_t n_samples, const uint64_t n_progs, const math_t *Y,
       else
         logsig = -expf(-yp);
       // error[pid * n_samples + i] = ((1 - y) * yp - logsig) * (N * w / WS);
-      out[pid] += ((1 - y) * yp - logsig) * (w / WS); // Directly accumulate
+      d_progs[pid].raw_fitness_ += ((1 - y) * yp - logsig) * (w / WS); // Directly accumulate
     }
   }
 }

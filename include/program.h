@@ -91,9 +91,8 @@ void execute(const program_t &d_progs, const int n_rows, const int n_progs,
  * @param score     Device pointer to final score (SIZE = n_progs)
  * @param params    Training hyperparameters
  */
-void compute_metric(int n_rows, int n_progs, const float *y,
-                    const float *y_pred, const float *w, float *score,
-                    const param &params);
+void compute_metric(program_t d_progs, int n_rows, int n_progs, const float *y,
+                    const float *y_pred, const float *w, const param &params);
 
 /**
  * @brief Computes the fitness scores for a sngle program on the given dataset
@@ -106,7 +105,7 @@ void compute_metric(int n_rows, int n_progs, const float *y,
  * @param y               Device pointer to input labels
  * @param sample_weights  Device pointer to sample weights
  */
-void find_fitness(program_t d_prog, float *score, const param &params,
+void find_fitness(program_t d_prog, const param &params,
                   const int n_rows, const float *data, const float *y,
                   const float *sample_weights);
 
@@ -123,7 +122,7 @@ void find_fitness(program_t d_prog, float *score, const param &params,
  * @param y               Device pointer to input labels
  * @param sample_weights  Device pointer to sample weights
  */
-void find_batched_fitness(int n_progs, program_t d_progs, float *score,
+void find_batched_fitness(int n_progs, program_t d_progs,
                           const param &params, const int n_rows,
                           const float *data, const float *y,
                           const float *sample_weights);

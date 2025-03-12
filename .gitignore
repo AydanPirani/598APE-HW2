@@ -39,3 +39,4 @@ data/
 
 cachegrind.out.*
 profile.json.gz
+bin
