@@ -40,13 +40,13 @@ void tournament_kernel(const std::vector<program> &progs, int *win_indices,
     r = rng(gen);
 
     // Define optima values
-    int opt = r % n_progs;
+    int opt = r;
     float opt_penalty = parsimony * progs[opt].len * (2 * criterion - 1);
     float opt_score = progs[opt].raw_fitness_ - opt_penalty;
 
     for (int s = 1; s < tour_size; ++s) {
       r = rng(gen);
-      int curr = r % n_progs;
+      int curr = r;
       float curr_penalty = parsimony * progs[curr].len * (2 * criterion - 1);
       float curr_score = progs[curr].raw_fitness_ - curr_penalty;
 
