@@ -1,3 +1,22 @@
+# FOR REVIEWERS
+
+Before running the code, please run the following commands after cloning the code (from the project directory):
+```bash
+chmod +x ./setup.sh
+sudo sh setup.sh
+```
+
+To run a benchmark, checkout the relevant git commit and run: 
+```bash
+hyperfine "<COMMAND>"
+```
+Note that you must replace `<COMMAND>` with the new command. Please ensure that the quotations around the command remain, as they are a hyperfine requirement.
+
+
+*Final Benchmark (and relevant commit hashes)*: 
+- **Finalized Code:** bb3f8487addf3f1e38ad9f34ffe77b5bc4beedfb
+-----
+
 # 598APE-HW2
 
 This repository contains code for homework 2 of 598APE.
